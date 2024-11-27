@@ -16,12 +16,21 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
+    "check:all": "yarn check:types && yarn check:lint && yarn check:prettier",
+    "check:fix": "yarn check:lint:fix && yarn check:prettier:fix",
+    "check:types": "./node_modules/.bin/tsc --noEmit",
+    "check:lint": "eslint src",
+    "check:lint:fix": "eslint src --fix",
+    "check:prettier": "yarn prettier --check src",
+    "check:prettier:fix": "yarn prettier --write src",
     "test": " node --test"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "8.16.0",
     "@typescript-eslint/parser": "8.16.0",
     "eslint": "9.15.0",
+    "eslint-config-airbnb-typescript": "18.0.0",
+    "eslint-config-prettier": "9.1.0",
     "prettier": "3.4.1",
     "typescript": "5.7.2"
   },
