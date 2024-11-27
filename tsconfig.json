@@ -1,0 +1,42 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "alwaysStrict": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "emitDecoratorMetadata": true,
+    "lib": ["es6", "ES2019"],
+    "target": "ES2019",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "baseUrl": "src",
+    "strict": true,
+    "declaration": true,
+    "noImplicitOverride": true,
+    "pretty": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "resolveJsonModule": true,
+    "paths": {
+    },
+    "typeRoots": [
+      "../node_modules/@types",
+      "node_modules/@types",
+      "@types"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    "config",
+    "dist"
+  ]
+}
