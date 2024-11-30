@@ -10,13 +10,20 @@ export class PerformanceMetricsObserver {
     }
 
     public start(): void {
+        if (!('PerformanceObserver' in window)) {
+            console.warn('[WARNING] PerformanceObserver or Paint Timing API is not supported in this environment.');
+            return;
+        }
         if (!this.config.enabled && this.config.availableMetrics.length === 0) {
             console.info('[INFO] Performance metrics collection is disabled.');
         } else {
             this.initObserver();
 
             this.observer!.observe({
-                entryTypes: this.config.availableMetrics,
+                entryTypes: this.config.availableMetrics.filter(
+                    metrinc =>
+                        ![PerformanceMetric.FirstContentfulPaint, PerformanceMetric.FirstPaint].includes(metrinc),
+                ),
             });
 
             console.info('[INFO] Performance metrics collection started.');
@@ -41,18 +48,62 @@ export class PerformanceMetricsObserver {
             );
 
             filteredEntries.forEach(entry => {
-                const threshold: number = this.config.getThreshold(entry.entryType as PerformanceMetric)!;
-
-                if (entry.duration > threshold) {
-                    console.warn(
-                        `[WARNING] ${entry.entryType} "${entry.name}" exceeded the threshold: ${entry.duration.toFixed(2)}ms (threshold: ${threshold}ms)`,
-                    );
-                } else if (this.config.logInfo) {
-                    console.info(
-                        `[INFO] ${entry.entryType} "${entry.name}" completed in ${entry.duration.toFixed(2)}ms`,
-                    );
-                }
+                this.monitorEntry(entry);
             });
         });
+    }
+
+    private monitorEntry(entry: PerformanceEntry): void {
+        const entryType = entry.entryType as PerformanceMetric;
+
+        if (entryType === PerformanceMetric.Paint) {
+            const paintName = entry.name as PerformanceMetric;
+            if (
+                [PerformanceMetric.FirstPaint, PerformanceMetric.FirstContentfulPaint].includes(paintName) &&
+                this.config.isMetricEnabled(paintName)
+            ) {
+                const threshold = this.config.getThreshold(paintName);
+                if (threshold && entry.startTime > threshold) {
+                    console.warn(
+                        `[WARNING] ${paintName} exceeded the threshold: ${entry.startTime.toFixed(
+                            2,
+                        )}ms (threshold: ${threshold}ms)`,
+                    );
+                } else if (this.config.logInfo) {
+                    console.info(`[INFO] ${paintName} completed in ${entry.startTime.toFixed(2)}ms`);
+                }
+            }
+            return;
+        }
+
+        if (this.config.isMetricEnabled(entryType)) {
+            const threshold = this.config.getThreshold(entryType);
+            if (threshold && entry.duration > threshold) {
+                if (entryType === 'longtask') {
+                    const attribution = (entry as any).attribution || [];
+                    const details = attribution
+                        .map((attr: any) => {
+                            return `Name: ${attr.name || 'Unknown'}, Container: ${
+                                attr.containerType || 'N/A'
+                            }, Source: ${attr.containerSrc || 'N/A'}`;
+                        })
+                        .join('; ');
+
+                    console.warn(
+                        `[WARNING] Longtask "${entry.name}" exceeded the threshold: ${entry.duration.toFixed(
+                            2,
+                        )}ms (threshold: ${threshold}ms). Details: ${details}`,
+                    );
+                } else {
+                    console.warn(
+                        `[WARNING] ${entryType}${
+                            entryType === entry.name ? ' ' : `: "${entry.name}" `
+                        }exceeded the threshold: ${entry.duration.toFixed(2)}ms (threshold: ${threshold}m s)`,
+                    );
+                }
+            } else if (this.config.logInfo) {
+                console.info(`[INFO] ${entryType} "${entry.name}" completed in ${entry.duration.toFixed(2)}ms`);
+            }
+        }
     }
 }

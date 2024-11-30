@@ -15,3 +15,8 @@ export class PerformanceMonitor {
         this.metricsObserver.start();
     }
 }
+
+export function monitor(config: PerformanceMonitorConfig = {}): void {
+    const performanceMonitor = new PerformanceMonitor(config);
+    performanceMonitor.start();
+}
