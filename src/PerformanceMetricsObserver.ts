@@ -27,6 +27,7 @@ export class PerformanceMetricsObserver {
                 entryTypes: this.config.availableMetrics.filter(
                     metric => ![PerformanceMetric.FirstContentfulPaint, PerformanceMetric.FirstPaint].includes(metric),
                 ),
+                buffered: true,
             });
 
             console.info('[INFO] Performance metrics collection started.');
@@ -89,8 +90,11 @@ export class PerformanceMetricsObserver {
         };
 
         const monitor = enityMonitors[entryType];
-
-        monitor?.(entry);
+        if (!monitor) {
+            console.warn(`[WARNING] No monitor found for entry type: ${entryType}`);
+        } else {
+            monitor(entry);
+        }
     }
 
     private monitorByDuration(entry: PerformanceEntry): void {
