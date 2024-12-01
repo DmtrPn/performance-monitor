@@ -1,26 +1,30 @@
-const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+function logPerformance(name: string, duration: number, threshold?: number) {
+    if (threshold && duration > threshold) {
+        console.warn(
+            `[WARNING] Method ${name} exceeded the threshold: ${duration.toFixed(2)}ms (threshold: ${threshold}ms)`,
+        );
+    } else {
+        console.info(`[INFO] Method ${name} executed in ${duration.toFixed(2)}ms`);
+    }
+}
 
-const perf = isNode ? require('perf_hooks').performance : performance;
-
-export function performanceDecorator(name?: string): MethodDecorator {
+export function performanceDecorator(name?: string, threshold?: number): MethodDecorator {
     return function (target, propertyKey, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
 
         descriptor.value = function (...args: any[]) {
-            const start = perf.now();
+            const start = performance.now();
             const result = originalMethod.apply(this, args);
 
             if (result instanceof Promise) {
                 return result.finally(() => {
-                    const duration = perf.now() - start;
-                    console.info(
-                        `[INFO] Method ${name || propertyKey.toString()} executed in ${duration.toFixed(2)}ms`,
-                    );
+                    const duration = performance.now() - start;
+                    logPerformance(name || propertyKey.toString(), duration, threshold);
                 });
             }
 
-            const duration = perf.now() - start;
-            console.info(`[INFO] Method ${name || propertyKey.toString()} executed in ${duration.toFixed(2)}ms`);
+            const duration = performance.now() - start;
+            logPerformance(name || propertyKey.toString(), duration, threshold);
             return result;
         };
 
@@ -28,20 +32,20 @@ export function performanceDecorator(name?: string): MethodDecorator {
     };
 }
 
-export function performanceWrapper<T extends (...args: any[]) => any>(fn: T, name?: string): T {
+export function performanceWrapper<T extends (...args: any[]) => any>(fn: T, name?: string, threshold?: number): T {
     return function (...args: Parameters<T>): ReturnType<T> {
-        const start = perf.now();
+        const start = performance.now();
         const result = fn(...args);
 
         if (result instanceof Promise) {
             return result.finally(() => {
-                const duration = perf.now() - start;
-                console.info(`[INFO] Function ${name || fn.name} executed in ${duration.toFixed(2)}ms`);
+                const duration = performance.now() - start;
+                logPerformance(name || fn.name, duration, threshold);
             }) as ReturnType<T>;
         }
 
-        const duration = perf.now() - start;
-        console.info(`[INFO] Function ${name || fn.name} executed in ${duration.toFixed(2)}ms`);
+        const duration = performance.now() - start;
+        logPerformance(name || fn.name, duration, threshold);
         return result;
     } as T;
 }
