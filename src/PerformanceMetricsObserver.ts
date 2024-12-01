@@ -120,10 +120,10 @@ export class PerformanceMetricsObserver {
                     threshold,
                     type: PerformanceMetric.Paint,
                     name: paintName,
-                    duration: entry.duration,
+                    duration: entry.startTime,
                 });
             } else if (this.config.logInfo) {
-                this.logInfo({ type: PerformanceMetric.Paint, name: paintName, duration: entry.duration });
+                this.logInfo({ type: PerformanceMetric.Paint, name: paintName, duration: entry.startTime });
             }
         }
     }
