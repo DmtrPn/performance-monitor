@@ -77,114 +77,103 @@ export class PerformanceMetricsObserver {
             [PerformanceMetric.Longtask]: this.monitorLongtaskMetric.bind(this),
             [PerformanceMetric.LargestContentfulPaint]: this.monitorLCPMetric.bind(this),
             [PerformanceMetric.LayoutShift]: this.monitorLayoutShiftMetric.bind(this),
-            [PerformanceMetric.Resource]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.Navigation]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.FirstPaint]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.FirstContentfulPaint]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.FirstInput]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.Event]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.Element]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.LongAnimationFrame]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.VisibilityState]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.FirstPaint]: this.monitorByStartTimeMetric.bind(this),
+            [PerformanceMetric.FirstContentfulPaint]: this.monitorByStartTimeMetric.bind(this),
+            [PerformanceMetric.FirstInput]: this.monitorByStartTimeMetric.bind(this),
+            [PerformanceMetric.VisibilityState]: this.monitorByStartTimeMetric.bind(this),
+            [PerformanceMetric.Resource]: this.monitorByDuration.bind(this),
+            [PerformanceMetric.Navigation]: this.monitorByDuration.bind(this),
+            [PerformanceMetric.Event]: this.monitorByDuration.bind(this),
+            [PerformanceMetric.Element]: this.monitorByDuration.bind(this),
+            [PerformanceMetric.LongAnimationFrame]: this.monitorByDuration.bind(this),
         };
 
         const monitor = enityMonitors[entryType];
 
-        monitor(entry);
+        monitor?.(entry);
     }
 
-    private defaultMonitor(entry: PerformanceEntry): void {
-        const entryType = entry.entryType as PerformanceMetric;
-        const threshold = this.config.getThreshold(entryType);
-        if (threshold && entry.duration > threshold) {
-            this.logExceededThreshold({
-                threshold,
-                type: entryType,
-                name: entry.name,
-                duration: entry.duration,
-            });
-        } else if (this.config.logInfo) {
-            this.logInfo({ type: entryType, name: entry.name, duration: entry.duration });
-        }
+    private monitorByDuration(entry: PerformanceEntry): void {
+        this.processEntry({
+            entry,
+            duration: entry.duration,
+        });
+    }
+
+    private monitorByStartTimeMetric(entry: PerformanceEntry): void {
+        this.processEntry({
+            entry,
+            duration: entry.startTime,
+        });
     }
 
     private monitorLCPMetric(entry: PerformanceEntry & { renderTime?: number; loadTime?: number }): void {
-        const entryType = entry.entryType as PerformanceMetric;
-        const threshold = this.config.getThreshold(entryType);
-
         const duration = entry.renderTime || entry.loadTime || entry.startTime;
-        if (threshold && duration > threshold) {
-            this.logExceededThreshold({
-                threshold,
-                duration,
-                type: entryType,
-                name: entry.name,
-            });
-        } else if (this.config.logInfo) {
-            this.logInfo({ type: entryType, name: entry.name, duration });
-        }
+
+        this.processEntry({
+            entry,
+            duration,
+        });
     }
 
     private monitorLayoutShiftMetric(entry: PerformanceEntry & { value?: number }): void {
-        const entryType = entry.entryType as PerformanceMetric;
-        const threshold = this.config.getThreshold(entryType);
-
         const duration = entry.value || entry.duration;
+        this.processEntry({
+            entry,
+            duration,
+        });
+    }
+
+    private monitorPaintMetric(entry: PerformanceEntry): void {
+        this.processEntry({
+            entry,
+            duration: entry.startTime,
+            thresholdName: entry.name as PerformanceMetric,
+        });
+    }
+
+    private monitorLongtaskMetric(entry: PerformanceEntry): void {
+        const attribution = (entry as any).attribution || [];
+        const details = attribution
+            .map(
+                (attr: any) =>
+                    `Name: ${attr.name || 'Unknown'}, Container: ${
+                        attr.containerType || 'N/A'
+                    }, Source: ${attr.containerSrc || 'N/A'}`,
+            )
+            .join('; ');
+
+        this.processEntry({
+            entry,
+            details,
+            duration: entry.duration,
+        });
+    }
+
+    private processEntry({
+        entry,
+        duration,
+        details,
+        thresholdName,
+    }: {
+        entry: PerformanceEntry;
+        duration: number;
+        details?: string;
+        thresholdName?: PerformanceMetric;
+    }): void {
+        const entryType = entry.entryType as PerformanceMetric;
+        const threshold = this.config.getThreshold(thresholdName ?? entryType);
+
         if (threshold && duration > threshold) {
             this.logExceededThreshold({
                 threshold,
                 duration,
                 type: entryType,
                 name: entry.name,
-            });
-        } else if (this.config.logInfo) {
-            this.logInfo({ type: entryType, name: entry.name, duration });
-        }
-    }
-
-    private monitorPaintMetric(entry: PerformanceEntry): void {
-        const paintName = entry.name as PerformanceMetric;
-        if (
-            [PerformanceMetric.FirstPaint, PerformanceMetric.FirstContentfulPaint].includes(paintName) &&
-            this.config.isMetricEnabled(paintName)
-        ) {
-            const threshold = this.config.getThreshold(paintName);
-            if (threshold && entry.startTime > threshold) {
-                this.logExceededThreshold({
-                    threshold,
-                    type: PerformanceMetric.Paint,
-                    name: paintName,
-                    duration: entry.startTime,
-                });
-            } else if (this.config.logInfo) {
-                this.logInfo({ type: PerformanceMetric.Paint, name: paintName, duration: entry.startTime });
-            }
-        }
-    }
-
-    private monitorLongtaskMetric(entry: PerformanceEntry): void {
-        const entryType = entry.entryType as PerformanceMetric;
-        const threshold = this.config.getThreshold(entryType);
-
-        const attribution = (entry as any).attribution || [];
-        const details = attribution
-            .map((attr: any) => {
-                return `Name: ${attr.name || 'Unknown'}, Container: ${
-                    attr.containerType || 'N/A'
-                }, Source: ${attr.containerSrc || 'N/A'}`;
-            })
-            .join('; ');
-
-        if (threshold && entry.duration > threshold) {
-            this.logExceededThreshold({
-                threshold,
                 details,
-                type: PerformanceMetric.Longtask,
-                name: entry.name,
-                duration: entry.duration,
             });
         } else if (this.config.logInfo) {
-            this.logInfo({ details, type: entryType, name: entry.name, duration: entry.duration });
+            this.logInfo({ type: entryType, name: entry.name, duration, details });
         }
     }
 
