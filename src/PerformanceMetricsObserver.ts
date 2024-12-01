@@ -1,6 +1,14 @@
 import { PerformanceConfig } from './PerformanceConfig';
 import { PerformanceMetric } from './types';
 
+interface LogData {
+    type: string;
+    name?: string;
+    duration: number;
+    threshold: number;
+    details?: string;
+}
+
 export class PerformanceMetricsObserver {
     private config: PerformanceConfig;
     private observer?: PerformanceObserver;
@@ -10,19 +18,14 @@ export class PerformanceMetricsObserver {
     }
 
     public start(): void {
-        if (!('PerformanceObserver' in window)) {
-            console.warn('[WARNING] PerformanceObserver or Paint Timing API is not supported in this environment.');
-            return;
-        }
-        if (!this.config.enabled && this.config.availableMetrics.length === 0) {
-            console.info('[INFO] Performance metrics collection is disabled.');
-        } else {
+        const isEnabled = this.isEnabled();
+
+        if (isEnabled) {
             this.initObserver();
 
             this.observer!.observe({
                 entryTypes: this.config.availableMetrics.filter(
-                    metrinc =>
-                        ![PerformanceMetric.FirstContentfulPaint, PerformanceMetric.FirstPaint].includes(metrinc),
+                    metric => ![PerformanceMetric.FirstContentfulPaint, PerformanceMetric.FirstPaint].includes(metric),
                 ),
             });
 
@@ -36,6 +39,19 @@ export class PerformanceMetricsObserver {
             this.observer = undefined;
             console.info('[INFO] Performance metrics collection stopped.');
         }
+    }
+
+    private isEnabled(): boolean {
+        let isEnabled = true;
+        if (!('PerformanceObserver' in window)) {
+            isEnabled = false;
+            console.warn('[WARNING] PerformanceObserver is not supported in this environment.');
+        } else if (!this.config.enabled && this.config.availableMetrics.length === 0) {
+            isEnabled = false;
+            console.info('[INFO] Performance metrics collection is disabled.');
+        }
+
+        return isEnabled;
     }
 
     private initObserver(): void {
@@ -56,54 +72,99 @@ export class PerformanceMetricsObserver {
     private monitorEntry(entry: PerformanceEntry): void {
         const entryType = entry.entryType as PerformanceMetric;
 
-        if (entryType === PerformanceMetric.Paint) {
-            const paintName = entry.name as PerformanceMetric;
-            if (
-                [PerformanceMetric.FirstPaint, PerformanceMetric.FirstContentfulPaint].includes(paintName) &&
-                this.config.isMetricEnabled(paintName)
-            ) {
-                const threshold = this.config.getThreshold(paintName);
-                if (threshold && entry.startTime > threshold) {
-                    console.warn(
-                        `[WARNING] ${paintName} exceeded the threshold: ${entry.startTime.toFixed(
-                            2,
-                        )}ms (threshold: ${threshold}ms)`,
-                    );
-                } else if (this.config.logInfo) {
-                    console.info(`[INFO] ${paintName} completed in ${entry.startTime.toFixed(2)}ms`);
-                }
-            }
-            return;
+        const enityMonitors: Record<PerformanceMetric, (entry: PerformanceEntry) => void> = {
+            [PerformanceMetric.Paint]: this.monitorPaintMetric.bind(this),
+            [PerformanceMetric.Longtask]: this.monitorLongtaskMetric.bind(this),
+            [PerformanceMetric.Resource]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.Navigation]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.FirstPaint]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.FirstContentfulPaint]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.FirstInput]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.LayoutShift]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.Event]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.LargestContentfulPaint]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.Element]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.LongAnimationFrame]: this.defaultMonitor.bind(this),
+            [PerformanceMetric.VisibilityState]: this.defaultMonitor.bind(this),
+        };
+
+        const monitor = enityMonitors[entryType];
+
+        monitor(entry);
+    }
+
+    private defaultMonitor(entry: PerformanceEntry): void {
+        const entryType = entry.entryType as PerformanceMetric;
+        const threshold = this.config.getThreshold(entryType);
+        if (threshold && entry.duration > threshold) {
+            this.logExceededThreshold({
+                threshold,
+                type: entryType,
+                name: entry.name,
+                duration: entry.duration,
+            });
+        } else if (this.config.logInfo) {
+            this.logInfo({ type: entryType, name: entry.name, duration: entry.duration });
         }
+    }
 
-        if (this.config.isMetricEnabled(entryType)) {
-            const threshold = this.config.getThreshold(entryType);
-            if (threshold && entry.duration > threshold) {
-                if (entryType === 'longtask') {
-                    const attribution = (entry as any).attribution || [];
-                    const details = attribution
-                        .map((attr: any) => {
-                            return `Name: ${attr.name || 'Unknown'}, Container: ${
-                                attr.containerType || 'N/A'
-                            }, Source: ${attr.containerSrc || 'N/A'}`;
-                        })
-                        .join('; ');
-
-                    console.warn(
-                        `[WARNING] Longtask "${entry.name}" exceeded the threshold: ${entry.duration.toFixed(
-                            2,
-                        )}ms (threshold: ${threshold}ms). Details: ${details}`,
-                    );
-                } else {
-                    console.warn(
-                        `[WARNING] ${entryType}${
-                            entryType === entry.name ? ' ' : `: "${entry.name}" `
-                        }exceeded the threshold: ${entry.duration.toFixed(2)}ms (threshold: ${threshold}m s)`,
-                    );
-                }
+    private monitorPaintMetric(entry: PerformanceEntry): void {
+        const paintName = entry.name as PerformanceMetric;
+        if (
+            [PerformanceMetric.FirstPaint, PerformanceMetric.FirstContentfulPaint].includes(paintName) &&
+            this.config.isMetricEnabled(paintName)
+        ) {
+            const threshold = this.config.getThreshold(paintName);
+            if (threshold && entry.startTime > threshold) {
+                this.logExceededThreshold({
+                    threshold,
+                    type: PerformanceMetric.Paint,
+                    name: paintName,
+                    duration: entry.duration,
+                });
             } else if (this.config.logInfo) {
-                console.info(`[INFO] ${entryType} "${entry.name}" completed in ${entry.duration.toFixed(2)}ms`);
+                this.logInfo({ type: PerformanceMetric.Paint, name: paintName, duration: entry.duration });
             }
         }
+    }
+
+    private monitorLongtaskMetric(entry: PerformanceEntry): void {
+        const entryType = entry.entryType as PerformanceMetric;
+        const threshold = this.config.getThreshold(entryType);
+
+        const attribution = (entry as any).attribution || [];
+        const details = attribution
+            .map((attr: any) => {
+                return `Name: ${attr.name || 'Unknown'}, Container: ${
+                    attr.containerType || 'N/A'
+                }, Source: ${attr.containerSrc || 'N/A'}`;
+            })
+            .join('; ');
+
+        if (threshold && entry.duration > threshold) {
+            this.logExceededThreshold({
+                threshold,
+                details,
+                type: PerformanceMetric.Longtask,
+                name: entry.name,
+                duration: entry.duration,
+            });
+        } else if (this.config.logInfo) {
+            this.logInfo({ details, type: entryType, name: entry.name, duration: entry.duration });
+        }
+    }
+
+    private logExceededThreshold({ type, name, duration, threshold, details }: LogData): void {
+        console.warn(
+            `[WARNING] ${type}${
+                !name || type === name ? ' ' : `: "${name}" `
+            }exceeded the threshold: ${duration.toFixed(2)}ms (threshold: ${threshold}ms).${!!details ? `\nDetails: ${details}` : ''}`,
+        );
+    }
+
+    private logInfo({ type, name, duration, details }: Omit<LogData, 'threshold'>): void {
+        console.info(
+            `[INFO] ${type}${!name || type === name ? ' ' : `: "${name}" `}completed in ${duration.toFixed(2)}ms.${!!details ? `\nDetails: ${details}` : ''}`,
+        );
     }
 }

@@ -15,15 +15,15 @@ const defaultThresholds: Record<PerformanceMetric, number> = {
     [PerformanceMetric.Navigation]: 2000,
     [PerformanceMetric.Paint]: 100,
     [PerformanceMetric.FirstPaint]: 100,
-    [PerformanceMetric.FirstContentfulPaint]: 150,
-    [PerformanceMetric.Longtask]: 500,
+    [PerformanceMetric.FirstContentfulPaint]: 1000,
+    [PerformanceMetric.Longtask]: 50,
     [PerformanceMetric.FirstInput]: 100,
     [PerformanceMetric.LayoutShift]: 0.1,
     [PerformanceMetric.Event]: 50,
     [PerformanceMetric.LargestContentfulPaint]: 2500,
-    [PerformanceMetric.Element]: 10,
-    [PerformanceMetric.LongAnimationFrame]: 10,
-    [PerformanceMetric.VisibilityState]: 10,
+    [PerformanceMetric.Element]: 50,
+    [PerformanceMetric.LongAnimationFrame]: 20,
+    [PerformanceMetric.VisibilityState]: 50,
 };
 
 export class PerformanceConfig {
