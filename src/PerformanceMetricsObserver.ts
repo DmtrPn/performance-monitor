@@ -76,12 +76,12 @@ export class PerformanceMetricsObserver {
             [PerformanceMetric.Paint]: this.monitorPaintMetric.bind(this),
             [PerformanceMetric.Longtask]: this.monitorLongtaskMetric.bind(this),
             [PerformanceMetric.LargestContentfulPaint]: this.monitorLCPMetric.bind(this),
+            [PerformanceMetric.LayoutShift]: this.monitorLayoutShiftMetric.bind(this),
             [PerformanceMetric.Resource]: this.defaultMonitor.bind(this),
             [PerformanceMetric.Navigation]: this.defaultMonitor.bind(this),
             [PerformanceMetric.FirstPaint]: this.defaultMonitor.bind(this),
             [PerformanceMetric.FirstContentfulPaint]: this.defaultMonitor.bind(this),
             [PerformanceMetric.FirstInput]: this.defaultMonitor.bind(this),
-            [PerformanceMetric.LayoutShift]: this.defaultMonitor.bind(this),
             [PerformanceMetric.Event]: this.defaultMonitor.bind(this),
             [PerformanceMetric.Element]: this.defaultMonitor.bind(this),
             [PerformanceMetric.LongAnimationFrame]: this.defaultMonitor.bind(this),
@@ -113,6 +113,23 @@ export class PerformanceMetricsObserver {
         const threshold = this.config.getThreshold(entryType);
 
         const duration = entry.renderTime || entry.loadTime || entry.startTime;
+        if (threshold && duration > threshold) {
+            this.logExceededThreshold({
+                threshold,
+                duration,
+                type: entryType,
+                name: entry.name,
+            });
+        } else if (this.config.logInfo) {
+            this.logInfo({ type: entryType, name: entry.name, duration });
+        }
+    }
+
+    private monitorLayoutShiftMetric(entry: PerformanceEntry & { value?: number }): void {
+        const entryType = entry.entryType as PerformanceMetric;
+        const threshold = this.config.getThreshold(entryType);
+
+        const duration = entry.value || entry.duration;
         if (threshold && duration > threshold) {
             this.logExceededThreshold({
                 threshold,
