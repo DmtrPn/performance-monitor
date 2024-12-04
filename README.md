@@ -108,6 +108,28 @@ wrappedFunction();
 
 You can define the metrics to observe, their thresholds, and logging preferences. Below are the configuration options and their types:
 
+#### Default Thresholds
+
+The library uses the following default thresholds for metrics. These values are based on general performance best practices and recommendations, ensuring reasonable limits for detecting performance issues:
+
+```typescript
+const defaultThresholds: Record<PerformanceMetric, number> = {
+    [PerformanceMetric.Resource]: 300, // Resources (e.g., scripts, images) should load within 300ms for optimal performance.
+    [PerformanceMetric.Navigation]: 2000, // Page navigation should ideally complete within 2 seconds for good UX.
+    [PerformanceMetric.Paint]: 100, // Paint events (e.g., first paint) should occur quickly to show initial feedback.
+    [PerformanceMetric.FirstPaint]: 100, // First paint is expected to happen within 100ms.
+    [PerformanceMetric.FirstContentfulPaint]: 1000, // FCP should ideally occur within 1 second for a fast user experience.
+    [PerformanceMetric.Longtask]: 50, // Tasks longer than 50ms are considered "long tasks" and can impact responsiveness.
+    [PerformanceMetric.FirstInput]: 100, // The first user interaction should be processed within 100ms.
+    [PerformanceMetric.LayoutShift]: 0.1, // A Cumulative Layout Shift (CLS) of 0.1 or less is considered good for visual stability.
+    [PerformanceMetric.Event]: 50, // Event handling should ideally complete within 50ms to ensure responsiveness.
+    [PerformanceMetric.LargestContentfulPaint]: 2500, // LCP under 2.5 seconds is key for good perceived load speed.
+    [PerformanceMetric.Element]: 50, // Element timing for specific elements should be fast.
+    [PerformanceMetric.LongAnimationFrame]: 20, // Animation frames longer than 20ms may cause visual stuttering.
+    [PerformanceMetric.VisibilityState]: 50, // State changes (e.g., visibility change) should be handled within 50ms.
+};
+```
+
 #### Available Options
 
 1. **`availableMetrics`**
