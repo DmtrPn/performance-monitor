@@ -51,7 +51,7 @@ This library is designed for monitoring the performance of websites and browser-
 import { monitor, MonitoringPresets } from 'perfomance-monitor';
 
 monitor({
-   enabledMetrics: MonitoringPresets.InitialLoad
+   enabledMetrics: [MonitoringPresets.InitialLoad]
 });
 ```
 #### Or using PerformanceMonitor class
