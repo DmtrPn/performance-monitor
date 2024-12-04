@@ -4,3 +4,6 @@ node_modules/
 .gitignore
 yarn.lock
 .idea
+.prettierignore
+.prettierrc.json
+eslint.config.js

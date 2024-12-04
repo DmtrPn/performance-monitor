@@ -1,3 +1,4 @@
+[![npm version](https://img.shields.io/npm/v/perfomance-monitor.svg)](https://www.npmjs.com/package/perfomance-monitor)
 
 # Performance Monitoring Library
 
